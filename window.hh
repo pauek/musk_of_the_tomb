@@ -1,9 +1,13 @@
 #ifndef GAME_HH
 #define GAME_HH
 
+#include <vector>
 #include "fenster.h"
 
 namespace pro2 {
+
+typedef std::vector<std::vector<uint8_t>> Sprite;
+typedef std::vector<uint32_t> Palette;
 
 template <int ZOOM = 3>
 class Window {
@@ -12,6 +16,30 @@ class Window {
     int64_t _last_time;
 
     struct fenster _fenster;
+    Palette _palette = {
+        0x000000, 0x0000AA, 0x00AA00, 0x00AAAA, 0xAA0000, 0xAA00AA,
+        0xAA5500, 0xAAAAAA, 0x555555, 0x5555FF, 0x55FF55, 0x55FFFF,
+        0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF,
+    };
+
+    void _put_frame() {
+        uint32_t *ppre, *pbuf[ZOOM];
+        const size_t num_pixels = _width * _height;
+        for (size_t j = 0; j < _height; j++) {
+            ppre = _pre + j * _width;
+            for (uint8_t z = 0; z < ZOOM; z++) {
+                pbuf[z] = _fenster.buf + (ZOOM * j + z) * _fenster.width;
+            }
+            for (size_t i = 0; i < _width; i++) {
+                const uint32_t color = *ppre++;
+                for (uint8_t z = 0; z < ZOOM; z++) {
+                    for (uint8_t k = 0; k < ZOOM; k++) {
+                        *pbuf[z]++ = color;
+                    }
+                }
+            }
+        }
+    }
 
    public:
     Window(const uint16_t w, const uint16_t h, const char* title)
@@ -47,26 +75,21 @@ class Window {
         }
     }
 
-    void put_frame() {
-        uint32_t *ppre, *pbuf[ZOOM];
-        const size_t num_pixels = _width * _height;
-        for (size_t j = 0; j < _height; j++) {
-            ppre = _pre + j * _width;
-            for (uint8_t z = 0; z < ZOOM; z++) {
-                pbuf[z] = _fenster.buf + (ZOOM * j + z) * _fenster.width;
-            }
-            for (size_t i = 0; i < _width; i++) {
-                const uint32_t color = *ppre++;
-                for (uint8_t z = 0; z < ZOOM; z++) {
-                    for (uint8_t k = 0; k < ZOOM; k++) {
-                        *pbuf[z]++ = color;
-                    }
+    void put_sprite(int x, int y, const Sprite& sprite) {
+        const int height = sprite.size();
+        for (int j = 0; j < sprite.size(); j++) {
+            const int width = sprite[j].size();
+            for (int i = 0; i < width; i++) {
+                if (sprite[j][i] != 0) {
+                    pixel(x + i, y + j) = _palette[sprite[j][i]];
                 }
             }
         }
     }
 
     bool next_frame(const int fps) {
+        _put_frame();
+
         int64_t now = fenster_time();
         if (now - _last_time < 1000 / fps) {
             fenster_sleep(now - _last_time);
