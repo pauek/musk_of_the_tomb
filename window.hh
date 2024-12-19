@@ -24,21 +24,15 @@ class Window {
 
     ~Window() {
         fenster_close(&_fenster);
-        // delete[] f.buf;
-    }
-
-    bool loop(const int fps) {
-        int64_t now = fenster_time();
-        if (now - _last_time < 1000 / fps) {
-            fenster_sleep(now - _last_time);
-        }
-        _last_time = now;
-        return fenster_loop(&_fenster) == 0;
+        delete[] _fenster.buf;
+        delete[] _pre;
     }
 
     inline uint32_t& pixel(int x, int y) { return _pre[y * _width + x]; }
 
-    bool key(int c) { return c >= 0 && c < 128 ? _fenster.keys[c] : false; }
+    bool is_key_pressed(int c) {
+        return c >= 0 && c < 128 ? _fenster.keys[c] : false;
+    }
 
     int mouse_x() const { return _fenster.x / ZOOM; }
     int mouse_y() const { return _fenster.y / ZOOM; }
@@ -46,14 +40,15 @@ class Window {
     int modifier_keys() const { return _fenster.mod; }
 
     void clear() {
-        uint32_t* ppre = _pre;
-        for (int i = 0; i < _width * _height; i++) {
-            *ppre++ = 0;
+        uint32_t* p = _pre;
+        const uint32_t* end = _pre + _width * _height;
+        while (p < end) {
+            *p++ = 0;
         }
     }
 
     void put_frame() {
-        uint32_t *ppre, *pbuf[3];
+        uint32_t *ppre, *pbuf[ZOOM];
         const size_t num_pixels = _width * _height;
         for (size_t j = 0; j < _height; j++) {
             ppre = _pre + j * _width;
@@ -69,6 +64,15 @@ class Window {
                 }
             }
         }
+    }
+
+    bool next_frame(const int fps) {
+        int64_t now = fenster_time();
+        if (now - _last_time < 1000 / fps) {
+            fenster_sleep(now - _last_time);
+        }
+        _last_time = now;
+        return fenster_loop(&_fenster) == 0;
     }
 };
 
